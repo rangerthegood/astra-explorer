@@ -126,7 +126,7 @@ class AstraApi:
 			print('Table %s set!' % data[table_num])
 			self.table = data[table_num]	
 
-			self.get_table(self.keyspace, self.table)
+			self.display_table_definition(self.keyspace, self.table)
 		
 
 	def get_table(self, keyspace, table):
@@ -146,8 +146,12 @@ class AstraApi:
 			print("Failed to query keyspace, reauthenticate")
 			return
 
-		print(response.text)
+	#	print(response.text)
 		data = json.loads(response.text)
+		return data
+
+	def display_table_definition(self, keyspace, table):
+		data = self.get_table(keyspace, table)
 		print('Table %s.%s' % (keyspace, table))
 		if 'columnDefinitions' in data:
 			cols = data['columnDefinitions']
@@ -288,6 +292,54 @@ class AstraApi:
 		
 		return data
 
+	def generate_code(self):
+		type_names = ["ascii", "bigint", "blob", "boolean", "counter", "date", "datetime", "decimal", "double", "float", "integer", "list", "map", "set", "smallint", "text", "time", "tinyint", "varint"]
+
+		data = self.get_all_tables(self.keyspace)
+
+		idx = 1
+		print("Tables:")
+		for d in data:
+			print("%d - %s" % (idx, d))
+			idx = idx + 1
+
+		table_numbers = input("Enter the table numbers (comma seperated): ")
+
+		tables = table_numbers.split(',')
+		code = 'from dse.cqlengine import columns\n'
+		code += 'from dse.cqlengine.models import Model\n\n'
+		for t in tables:
+			t_num = int(t)
+	#		print("Table idx: %d - %s" % (t_num, data[t_num-1]))
+
+			table_details = self.get_table(self.keyspace, data[t_num-1])	
+	#		print(table_details)
+			code += "class %sModel(Model):\n" % (table_details['name'].capitalize())
+			code += '\t"""Model class that maps to the %s table"""\n' % table_details['name']
+			code += '\t__table_name__ = \'%s\'\n' % table_details['name']
+			for c in table_details['columnDefinitions']:
+				code += "\t%s = columns." % (c['name'])
+
+				if c['typeDefinition'] in type_names:
+					typename = c['typeDefinition'].capitalize()
+				elif c['typeDefinition'] == 'uuid':
+					typename = 'UUID'
+				elif c['typeDefinition'] == 'timeuuid':
+					typename = 'TimeUUID'
+				else:
+					code = ''
+					break
+				primary_keys = table_details['primaryKey']['partitionKey']
+				if c['name'] in primary_keys:
+					code += '%s(primary_key=True)\n' % typename
+				else:
+					code += '%s()\n' % typename
+			code += '\n'
+		print('\n\n%s' % code)
+					
+
+#{'name': 'users', 'keyspace': 'rtg_keyspace', 'columnDefinitions': [{'name': 'auth_token', 'typeDefinition': 'text'}, {'name': 'user_id', 'typeDefinition': 'uuid'}, {'name': 'username', 'typeDefinition': 'text'}], 'primaryKey': {'partitionKey': ['auth_token']}, 'tableOptions': {'defaultTimeToLive': None}}
+
 	def display_types(self):
 		idx = 1
 		for t in self.TYPES:
@@ -305,7 +357,8 @@ def menu():
 	print("3 - Get table columns")
 	print("4 - Get all rows")
 	print("5 - Create Table")
-	print("6 - Exit")
+	print("6 - Generate Code")
+	print("7 - Exit")
 
 	idx = input("> ")
 	print("")
@@ -351,6 +404,8 @@ def main():
 		elif cmd == '5':
 			astra.create_table()
 		elif cmd == '6':
+			astra.generate_code()
+		elif cmd == '7':
 			break
 
 		# get next command
