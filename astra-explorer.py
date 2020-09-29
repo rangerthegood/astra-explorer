@@ -146,7 +146,7 @@ class AstraApi:
 			print("Failed to query keyspace, reauthenticate")
 			return
 
-	#	print(response.text)
+#		print(response.text)
 		data = json.loads(response.text)
 		return data
 
@@ -326,7 +326,10 @@ class AstraApi:
 					typename = 'UUID'
 				elif c['typeDefinition'] == 'timeuuid':
 					typename = 'TimeUUID'
+				elif c['typeDefinition'] == 'int':
+					typename = 'Integer'
 				else:
+					print("Error finding type: %s" % c['typeDefinition'])
 					code = ''
 					break
 				primary_keys = table_details['primaryKey']['partitionKey']
