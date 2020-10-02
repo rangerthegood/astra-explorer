@@ -224,19 +224,19 @@ class AstraApi:
 			print("Failed to create new table")
 			print(response.text)
 
+	def get_all_rows(self, keyspace, table):
+		self._auth_token = self.get_auth_token()
+		print(self._auth_token)
 
-	def get_all_rows(self):
-		self.auth_token = self.get_auth_token()
-
-		if self.keyspace == None:
+		if keyspace == None:
 			print("Keyspace not set")
-			return
+			return None
 		
-		if self.table == None:
+		if table == None:
 			print("Table not set");
-			return
+			return None
 
-		url = "https://{databaseId}-{region}.apps.astra.datastax.com/api/rest/v1/keyspaces/{keyspaceName}/tables/{tableName}/rows".format(databaseId=self.databaseid, region=self.region, keyspaceName=self.keyspace, tableName=self.table)
+		url = "https://{databaseId}-{region}.apps.astra.datastax.com/api/rest/v1/keyspaces/{keyspaceName}/tables/{tableName}/rows".format(databaseId=self.databaseid, region=self.region, keyspaceName=keyspace, tableName=table)
 
 		headers = {
 		    "accept": "application/json",
@@ -245,20 +245,26 @@ class AstraApi:
 
 		response = requests.request("GET", url, headers=headers)
 		if response.status_code != 200:
-			self.auth_token = None
+			self._auth_token = None
 			print("Failed to query keyspace, reauthenticate")
-			return
+			return None
 
 		data = json.loads(response.text)
-		if 'rows' not in data:
-			print("No rows to display")
-			return
-	
+		return data
+
+	def display_all_rows(self):
+		data = self.get_all_rows(self.keyspace, self.table)
+
 		idx = 1
 		print('Results for %s.%s' % (self.keyspace, self.table))
-		for d in data['rows']:
-			print('\t%d - %s' % (idx, d))
-			idx = idx + 1
+		if data == None:
+			print("No Rows")
+
+		if 'rows' in data:
+			for d in data['rows']:
+				print('\t%d - %s' % (idx, d))
+				idx = idx + 1
+
 
 	def get_table_columns(self):
 		self.auth_token = self.get_auth_token()
@@ -403,7 +409,7 @@ def main():
 		elif cmd == '3':
 			astra.get_table_columns()	
 		elif cmd == '4':
-			astra.get_all_rows()
+			astra.display_all_rows()
 		elif cmd == '5':
 			astra.create_table()
 		elif cmd == '6':
